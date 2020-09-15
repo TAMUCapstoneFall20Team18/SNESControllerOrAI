@@ -1,0 +1,22 @@
+Notes from meeting and documentation for later research for Andrew or Jacob 
+    Current 14SEP20
+    
+1. Currently using Retro Gym for training. 
+
+2. Only working on having Linux compatable
+
+3. Pick an emulator to install to run the AI code
+   3a. Look at an emulator that can be controlled through the backend. (GYM?)
+   3b. Something easy (preferably) to download and get ready to play manual
+   
+4. AI will turn on with controller, but will be inactive (how to control that?) until switch is flipped
+   a. Some kind of requirement that start the game with AI on or off, not switch in middle of game (i.e. a fight or level)
+   b. AI should be able to play beginning to end, i.e. play and win. 
+   
+5. Computer should use HDMI to transfer image while using Bluetooth for data transfer?
+  a. Asking TA this 15SEP20
+  b. Assuming yes, how to split info down those tracks? 
+ 
+6. Figure out how to work with computer and control game
+
+

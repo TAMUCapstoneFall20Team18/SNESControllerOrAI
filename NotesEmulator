@@ -3,11 +3,14 @@ Notes from meeting and documentation for later research for Andrew or Jacob
     
 1. Currently using Retro Gym for training. 
 
-2. Only working on having Linux compatable
 
-3. Pick an emulator to install to run the AI code
-   3a. Look at an emulator that can be controlled through the backend. (GYM?)
-   3b. Something easy (preferably) to download and get ready to play manual
+2. Pick an emulator to install to run the AI code
+   a. Look at an emulator that can be controlled through the backend. (GYM?)
+   b. Something easy (preferably) to download and get ready to play manual
+
+(I realize that this stuff below is second semester but stuff to think about in design now.)
+
+3. Only working on having Linux compatable
    
 4. AI will turn on with controller, but will be inactive (how to control that?) until switch is flipped
    a. Some kind of requirement that start the game with AI on or off, not switch in middle of game (i.e. a fight or level)
@@ -18,5 +21,9 @@ Notes from meeting and documentation for later research for Andrew or Jacob
   b. Assuming yes, how to split info down those tracks? 
  
 6. Figure out how to work with computer and control game
+
+7. For the SD cards with the games, how to transfer choice to the emulator 
+  a. Thoughts include having some sort of data transfer confirming selection of game on user side
+  b. having user select game on emulator, so SD card is just to prime the AI, not needed for manual play?
 
 

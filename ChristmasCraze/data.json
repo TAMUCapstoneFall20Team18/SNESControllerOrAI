@@ -1,0 +1,36 @@
+{
+  "info": {
+    "Boss": {
+      "address": 8274105,
+      "type": "|u1"
+    },
+    "BossPresent": {
+      "address": 8271304,
+      "type": "|d1"
+    },
+    "Endstate": {
+      "address": 8107,
+      "type": "|d1"
+    },
+    "TargPresent": {
+      "address": 8274343,
+      "type": "|d1"
+    },
+    "enemy": {
+      "address": 8274217,
+      "type": "<d2"
+    },
+    "lives": {
+      "address": 8274339,
+      "type": "|d1"
+    },
+    "score": {
+      "address": 8274093,
+      "type": "<u4"
+    },
+    "snowball": {
+      "address": 8274097,
+      "type": "|d1"
+    }
+  }
+}

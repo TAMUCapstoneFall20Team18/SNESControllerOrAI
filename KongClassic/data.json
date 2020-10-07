@@ -1,0 +1,32 @@
+{
+  "info": {
+    "Barrels": {
+      "address": 8313322,
+      "type": "|u1"
+    },
+    "Bonus": {
+      "address": 8266847,
+      "type": "<u2"
+    },
+    "Fireballs": {
+      "address": 8266858,
+      "type": "|u1"
+    },
+    "Hammer": {
+      "address": 8312464,
+      "type": "|u1"
+    },
+    "Level": {
+      "address": 8313398,
+      "type": "|u1"
+    },
+    "Lives": {
+      "address": 8266840,
+      "type": "|u1"
+    },
+    "score": {
+      "address": 8265753,
+      "type": "|u1"
+    }
+  }
+}

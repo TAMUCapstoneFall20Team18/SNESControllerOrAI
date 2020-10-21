@@ -1,0 +1,12 @@
+1 =  Up = Key.up
+2 = Down = Key.down
+3 = Left = Key.left
+4 = Right = Key.right
+5 = A
+6 = B
+7 = X
+8 = Y
+9 = L
+10 = R
+11 = Select = Key.space
+12 = Start = Key.enter 

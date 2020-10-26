@@ -1,0 +1,10 @@
+This will have a list of all the required downloads
+
+higan (emulator)
+
+python3
+
+potentially:
+
+openCV
+tensorflow

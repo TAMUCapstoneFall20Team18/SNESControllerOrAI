@@ -9,7 +9,7 @@ Team 18 Senior Design Project
   
    Hardware Lead: Kyle Landry
   
-   R&D Lead: Andrew Frosch
+   Communications Lead: Andrew Frosch
    
    Project Plan: Make a controller that is able to manually play SNES games or delegate playing the game to an AI.
    

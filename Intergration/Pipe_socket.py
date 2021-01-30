@@ -74,8 +74,10 @@ def main():
         try:
             
             s_receive, address = s_blue.accept()
+            m.
             while 1:
                     data = s_receive.recv(size)
+                    
                     if not data:
                         keypress = ''
                         break
@@ -95,7 +97,7 @@ def main():
         print(f"Input to pipe is {keypress} presses")
         ##Have a ignore switch for
         
-        while keypress > 0:
+        while keypress > 0: ##This needs the delay pulse
             f.write(b'a')
             f.flush()
             time.sleep(0.1)

@@ -1,0 +1,4 @@
+To implement the emulator:
+Unzip higan_nightly and SDL_2.0 in same folder
+Apply patch to the higan_nightly folder
+make -C byuu

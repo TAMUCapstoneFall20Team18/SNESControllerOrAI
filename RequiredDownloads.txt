@@ -4,7 +4,6 @@ higan (emulator)
 
 python3
 
-potentially:
-
 openCV
 tensorflow
+gym

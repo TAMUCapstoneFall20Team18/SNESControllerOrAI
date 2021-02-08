@@ -5,32 +5,17 @@
 #Perhaps in a later model, the log can be read right back into the system, making it
 #more general
 
-##This manual may need a secondary port to listen to. This will complicate things
-##   as I will need the manual to send a message when changed and have listening to that
-##This will be fun.
 
 ##2021-01-23
 ##CHANGES Changed to allow for a random amout of change to the keypress
+#2021-02-06
+#CHANGES: Socket manipulation and begining of implimentation of regex filtering
+
 import time
 import socket
 import random
 import re
 
-##def setup_sockets():
-##    global s_receive
-##    s_receive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-##    print("Daemon {} binding to {}".format(DAEMON_NAME, PORT_RECEIVE))
-##    s_receive.bind((HOST, PORT_RECEIVE))
-##
-##    print("{} set".format(DAEMON_NAME))
-##
-##def closesocket():
-##    global s_receive
-##    if s_receive != '':
-##     s_receive.shutdown(socket.SHUT_RDWR)
-##     s_receive.close()
-##    print(f"Closed sockets {DAEMON_NAME}")
-##
 hostMACAddress = 'BC:14:EF:A3:39:3C'
 recieve_port = 5 ##bluetooth for RM socket ##This is becuase currently looking at one port
 backlog = 1
@@ -40,11 +25,13 @@ def socket_setup(): ##Sets up the bluetooth socket
     global s_blue
     s_blue = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
     s_blue.bind((hostMACAddress, recieve_port))
+    s_blue.listen(backlog)
 
 def close_socket(): ##final closing socket
     global s_blue, s_receive
     s_receive.shutdown(socket.SHUT_RDWR)
     s_receive.close()
+    s_blue.close()
     print(f"Closed sockets pipe_socket")
 
 def generate_rand_pulse():
@@ -60,52 +47,49 @@ def main():
     f = open("/home/widman/Documents/School20Fall/ECEN_403/retro_gym/higan-nightly/higan-nightly/myfifo","wb")
     
     while True:
-##        s_receive.listen()
-##        conn, addr = s_receive.accept()
-##        print('Connected by', addr)
-##        while True:
-##            data = conn.recv(1024)
-##            if not data:
-##                keypress = ''
-##                break
+
         p1 = re.compile("^\d{3}") #assuming that the 16 vector is longer than 3 digits
-        p2 = re.compile("^\[atf]{1}")
+        p2 = re.compile("^[a]+|[tf]{1}")
         p3 = re.compile("^\d{1,2}")
-        ##button press for manual
-        #key; a is button press, t is AI on, f is AI off
-        
         s_receive, address = s_blue.accept()
-        s_blue.listen(backlog)
-        
         try:
+            
             while True:
                 data = s_receive.recv(size)
                 if not data:
                     keypress = ''
                     break
-                keypress = data.decode()
-                print(f"This is the data receieved {data}")
-                m1 = p1.match(data)
-                m2 = p2.match(data)
-                m3 = p3.match(data)
+                keypress = 0
+                data_input = data.decode()
+                print(f"This is the data receieved {data_input}")
+##                if data_input:
+##                    f.write(b'a')
+##                    f.flush()
+                #print(type(data_input))
+                m1 = p1.match(data_input)
+                m2 = p2.match(data_input)
+                m3 = p3.match(data_input)
                 if m1: #this is if 16 bit vector
-                    keypress = ''
+                    keypress = 0
                     print(f"16 vector")
                     break
-                if m2:
-                    print("From Pi {}")
-                    if data == 't':
+                elif m2:
+                    print(f"From Pi {data_input}")
+                    if data_input == 't':
                         f.write(b'1')
                         f.flush()
-                    if data == 'f':
+                    elif data_input == 'f':
                         f.write(b'2')
                         f.flush()
-                    elif data == 'a':
-                        f.write(b'a')
-                        f.flush()                          
+                    else: ##FIX only one input per press, no holding possible per poll
+                        keypress_input = re.findall('a', data_input)
+                        for i in range(1, keypress_input):
+                            print(f"This is press num {keypress_input})
+                            f.write(b'a')
+                            f.flush()        ##Count A's and print as count                  
 
-                if m3:
-                    keypress = int(data.decode())
+                elif m3:
+                    keypress = int(data_input)
                     add_pulse = generate_rand_pulse()
                     if add_pulse == True:
                         keypress += 1
@@ -120,10 +104,9 @@ def main():
                     
                     
     
-        except:
-            print("Closing socket")
-            s_receive.close()
-            s_blue.close()
+        except Exception as e:
+            print(f"Error {e}")
+            
         
     f.close()
 
@@ -131,4 +114,4 @@ try:
     socket_setup()
     main()
 finally:
-    closesocket()
+    close_socket()

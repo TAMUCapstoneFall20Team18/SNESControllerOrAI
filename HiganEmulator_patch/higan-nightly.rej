@@ -1,0 +1,19 @@
+*** input.cpp	2020-10-09 03:41:58.000000000 -0500
+--- input.cpp	2020-11-03 06:35:07.827824308 -0600
+***************
+*** 280,283 ****
+  auto InputManager::eventInput(shared_pointer<HID::Device> device, uint groupID, uint inputID, int16_t oldValue, int16_t newValue) -> void {
+    inputSettings.eventInput(device, groupID, inputID, oldValue, newValue);
+    hotkeySettings.eventInput(device, groupID, inputID, oldValue, newValue);
+  }
+--- 280,289 ----
+  auto InputManager::eventInput(shared_pointer<HID::Device> device, uint groupID, uint inputID, int16_t oldValue, int16_t newValue) -> void {
+    inputSettings.eventInput(device, groupID, inputID, oldValue, newValue);
+    hotkeySettings.eventInput(device, groupID, inputID, oldValue, newValue);
++   // if ((inputID == 35) && (groupID == 0)) {
++     // ruby::set_make_screenshot_flag(1);   // start taking screenshots when start key is pressed
++     // printf("input.cpp: InputManager::eventInput(): device %X, groupID %d, inputID %d, oldValue %d, newValue %d\n",
++     // 	 device, (int)groupID, (int)inputID, (int)oldValue, (int)newValue);
++   // }
++ 
+  }

@@ -1,0 +1,446 @@
+diff -rc higan-nightly/byuu/input/input.cpp higan-nightly.new/byuu/input/input.cpp
+*** higan-nightly/byuu/input/input.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/byuu/input/input.cpp	2020-11-03 06:35:07.827824308 -0600
+***************
+*** 280,283 ****
+--- 280,289 ----
+  auto InputManager::eventInput(shared_pointer<HID::Device> device, uint groupID, uint inputID, int16_t oldValue, int16_t newValue) -> void {
+    inputSettings.eventInput(device, groupID, inputID, oldValue, newValue);
+    hotkeySettings.eventInput(device, groupID, inputID, oldValue, newValue);
++   // if ((inputID == 35) && (groupID == 0)) {
++     // ruby::set_make_screenshot_flag(1);   // start taking screenshots when start key is pressed
++     // printf("input.cpp: InputManager::eventInput(): device %X, groupID %d, inputID %d, oldValue %d, newValue %d\n",
++     // 	 device, (int)groupID, (int)inputID, (int)oldValue, (int)newValue);
++   // }
++ 
+  }
+diff -rc higan-nightly/higan/sfc/ppu-performance/object.cpp higan-nightly.new/higan/sfc/ppu-performance/object.cpp
+*** higan-nightly/higan/sfc/ppu-performance/object.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/higan/sfc/ppu-performance/object.cpp	2020-10-18 08:56:46.416869788 -0500
+***************
+*** 45,50 ****
+--- 45,56 ----
+      uint tileWidth = item.width >> 3;
+      int x = object.x;
+      int y = ppu.vcounter() - object.y & 255;
++ 
++ // 2020-10-18 debug
++     int x_save = x;
++     int y_save = y;
++ // 2020-10-18 debug
++ 
+      if(io.interlace) y <<= 1;
+  
+      if(object.vflip) {
+***************
+*** 68,73 ****
+--- 74,86 ----
+      if(object.nameselect) tiledataAddress += 1 + io.nameselect << 12;
+      uint16 characterX =  object.character.bit(0,3);
+      uint16 characterY = (object.character.bit(4,7) + (y >> 3) & 15) << 4;
++ // 2020-10-18 debug
++ // // if ((tileWidth > 1) && (characterY == 48))
++ // if (tileWidth > 4) {
++ //  printf("PPU:object:render(): n %d, x %d, y %d, character X/Y '%d'/'%d. width/height '%d'/'%d''. tileWidth %d.\n", 
++ //         n, x_save, y_save, (int)characterX, (int)characterY, tileWidth, (int)item.width, (int)item.height);
++ // }
++ // 2020-10-18 debug
+  
+      for(uint tileX : range(tileWidth)) {
+        uint objectX = x + (tileX << 3) & 511;
+diff -rc higan-nightly/nall/GNUmakefile higan-nightly.new/nall/GNUmakefile
+*** higan-nightly/nall/GNUmakefile	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/nall/GNUmakefile	2020-11-03 00:12:17.731760952 -0600
+***************
+*** 76,81 ****
+--- 76,86 ----
+    endif
+  endif
+  
++ # 2020-11-02
++ # build := debug
++ #  flags += -Og -g -DBUILD_DEBUG
++ # 2020-11-02
++ 
+  # build optimization levels
+  ifeq ($(build),debug)
+    flags += -Og -g -DBUILD_DEBUG
+diff -rc higan-nightly/ruby/input/keyboard/xlib.cpp higan-nightly.new/ruby/input/keyboard/xlib.cpp
+*** higan-nightly/ruby/input/keyboard/xlib.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/input/keyboard/xlib.cpp	2020-11-03 08:24:34.795890631 -0600
+***************
+*** 1,5 ****
+--- 1,10 ----
+  #pragma once
+  
++ // 2020-11-02
++ #include<sys/select.h>
++ #include<unistd.h>
++ // 2020-11-02
++ 
+  struct InputKeyboardXlib {
+    Input& input;
+    InputKeyboardXlib(Input& input) : input(input) {}
+***************
+*** 15,20 ****
+--- 20,81 ----
+    };
+    vector<Key> keys;
+  
++   // 2020-11-02
++   uint simulate_keypress_flag = 0;
++   uint implement_simulated_keypresses = 0;
++   int  fd;                                 // file descriptor, not FILE * pointer
++ 
++   #define MAX_BUFFER_SIZE 100
++   auto select_poll() -> void {
++     //struct timeval timeout = {0, 100 * 1000};
++     struct timeval timeout;
++     int    count;
++     fd_set rfd;
++     char   buffer[MAX_BUFFER_SIZE + 1];
++ 
++     // printf("select_poll(): flag is %d\n", implement_simulated_keypresses);
++     if (! implement_simulated_keypresses) { return; }
++ 
++     FD_ZERO( &rfd );
++     FD_SET ( fd, &rfd );
++     // zero timeout returns immediately whether or not input is available so it's useful for polling
++     timeout.tv_sec  = 0;
++     timeout.tv_usec = 0;
++     count = select(fd + 1, &rfd, NULL, NULL, &timeout);
++     if (FD_ISSET(fd, &rfd)) {
++       // printf("select_poll(): fd %d is set and select count is %d\n", fd, count);
++       // try to read all the characters in the buffer, which we
++       // assume will be the same character. In case they are repeated,
++       // we can issue repeated simulated keypresses.  We will add
++       // the new total to the ones received earlier in case that proves useful.
++       // read returns the number of bytes read.
++       count                   = read(fd, &buffer, MAX_BUFFER_SIZE);
++       simulate_keypress_flag += count;
++       // if (count > 0) {
++       //   printf("select_poll(): read %d, so new value of simulate_keypress_flag is %d\n", count, simulate_keypress_flag);
++       // }
++     }
++   }
++ 
++   auto select_setup() -> void {
++      // open input file (or socket)
++      char buffer[1000];  // sigh. Avoids having to malloc storage
++      char cwd[900];     // sigh. Avoids having to malloc storage
++      getcwd(cwd, 899);
++      sprintf(buffer, "%s/myfifo", cwd);
++      // sprintf(buffer, "%s/byuu.simulated_keypresses.txt", cwd);
++      printf("select_setup(): fixing to open input pipe with '%s' (len %d)\n", buffer, int(strlen(buffer)));
++      // thanks to https://stackoverflow.com/questions/8507810/why-does-my-program-hang-when-opening-a-mkfifo-ed-pipe
++      if(( fd = open( buffer, O_RDONLY | O_NONBLOCK, 0660 ) ) > -1 ) {
++         implement_simulated_keypresses = 1;
++         printf("select_setup(): initializing simulation of keypresses from file '%s'\n", buffer);
++      } else {
++         fd = -1;
++         printf("select_setup(): cannot simulate keypresses because cannot open '%s'\n", buffer);
++      }
++   }
++   // 2020-11-02
++ 
+    auto assign(uint inputID, bool value) -> void {
+      auto& group = hid->buttons();
+      if(group.input(inputID).value() == value) return;
+***************
+*** 22,27 ****
+--- 83,96 ----
+      group.input(inputID).setValue(value);
+    }
+  
++   // 2020-11-02
++   // This function is called regularly to poll the keyboard.
++   //  XQueryKeymap gets the current state of all keys in a 32-byte buffer
++   // The A key corresponds to inputID 35. So we can insert that value with 
++   // assign(35, 1) when the flag is set, and then decrement the flag. The
++   // next time we check the flag is when this function is polled again, which
++   // hopefully will lead to better timing delays.
++   // 2020-11-02
+    auto poll(vector<shared_pointer<HID::Device>>& devices) -> void {
+      char state[32];
+      XQueryKeymap(display, state);
+***************
+*** 32,37 ****
+--- 101,116 ----
+        assign(inputID++, value);
+      }
+  
++     // 2020-11-02
++     // when it is time to simulate a keypress, we do this:
++     select_poll();
++     if ( simulate_keypress_flag ) {
++       assign(35, 1);                // simulate keypress
++       simulate_keypress_flag--;     // decrement the flag
++       // printf("poll(): simulating keypress\n");
++     }
++     // 2020-11-02
++ 
+      devices.append(hid);
+    }
+  
+***************
+*** 161,166 ****
+--- 240,249 ----
+        key.keycode = XKeysymToKeycode(display, key.keysym);
+      }
+  
++     // 2020-11-02
++     select_setup();
++     // 2020-11-02
++ 
+      return true;
+    }
+  
+diff -rc higan-nightly/ruby/ruby.cpp higan-nightly.new/ruby/ruby.cpp
+*** higan-nightly/ruby/ruby.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/ruby.cpp	2020-10-18 17:33:36.295007310 -0500
+***************
+*** 28,30 ****
+--- 28,46 ----
+  #include <ruby/video/video.cpp>
+  #include <ruby/audio/audio.cpp>
+  #include <ruby/input/input.cpp>
++ 
++ // 2020-10-18 for screenshots
++ namespace ruby {
++ 
++   int make_screenshot_flag = 0;
++ 
++   auto set_make_screenshot_flag(int value) -> void {
++     make_screenshot_flag = value;
++   }
++ 
++   auto get_make_screenshot_flag() -> int {
++     return make_screenshot_flag;
++   }
++ 
++ } 
++ // 2020-10-18 for screenshots
+diff -rc higan-nightly/ruby/ruby.hpp higan-nightly.new/ruby/ruby.hpp
+*** higan-nightly/ruby/ruby.hpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/ruby.hpp	2020-10-18 17:35:05.212433204 -0500
+***************
+*** 33,36 ****
+--- 33,39 ----
+  #include <ruby/audio/audio.hpp>
+  #include <ruby/input/input.hpp>
+  
++  auto set_make_screenshot_flag(int value) -> void;
++  auto get_make_screenshot_flag() -> int;
++ 
+  }
+diff -rc higan-nightly/ruby/video/cgl.cpp higan-nightly.new/ruby/video/cgl.cpp
+*** higan-nightly/ruby/video/cgl.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/cgl.cpp	2020-10-18 15:36:45.396880985 -0500
+***************
+*** 109,114 ****
+--- 109,116 ----
+          OpenGL::outputHeight = windowHeight;
+          OpenGL::output();
+  
++ printf("cgl.cpp: width/height '%d'/'%d'\n", (int)windowWidth, (int)windowHeight);
++ 
+          [[view openGLContext] flushBuffer];
+          if(self.flush) glFinish();
+          [view unlockFocus];
+diff -rc higan-nightly/ruby/video/glx2.cpp higan-nightly.new/ruby/video/glx2.cpp
+*** higan-nightly/ruby/video/glx2.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/glx2.cpp	2020-10-18 15:37:22.689206085 -0500
+***************
+*** 132,137 ****
+--- 132,139 ----
+      uint viewportWidth = parent.width;
+      uint viewportHeight = parent.height;
+  
++ printf("glx2.cpp: width/height '%d'/'%d'\n", (int)viewportWidth, (int)viewportHeight);
++ 
+      if(self.fullScreen) {
+        viewportX = _monitorX;
+        viewportY = _monitorY;
+diff -rc higan-nightly/ruby/video/glx.cpp higan-nightly.new/ruby/video/glx.cpp
+*** higan-nightly/ruby/video/glx.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/glx.cpp	2020-10-18 16:30:08.843434088 -0500
+***************
+*** 118,123 ****
+--- 118,125 ----
+      auto _height = height ? height : _monitorHeight;
+      auto _monitorY = parent.height - (this->_monitorY + _height) - (_monitorHeight - _height);
+  
++     //printf("glx.cpp: width/height '%d'/'%d'\n", width, height);
++ 
+      OpenGL::absoluteWidth = width;
+      OpenGL::absoluteHeight = height;
+      OpenGL::outputX = self.fullScreen ? _monitorX : 0;
+diff -rc higan-nightly/ruby/video/opengl/main.hpp higan-nightly.new/ruby/video/opengl/main.hpp
+*** higan-nightly/ruby/video/opengl/main.hpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/opengl/main.hpp	2020-10-27 21:17:46.793981093 -0500
+***************
+*** 1,3 ****
+--- 1,7 ----
++ // 2020-10-18 for screenshots
++ #include<sys/time.h>
++ // 2020-10-18 for screenshots
++ 
+  auto OpenGL::setShader(const string& pathname) -> void {
+    for(auto& program : programs) program.release();
+    programs.reset();
+***************
+*** 87,92 ****
+--- 91,103 ----
+    return data = buffer;
+  }
+  
++ // 2020-10-18 for screenshots
++ static timeval last_screenshot_time = {0, 0};
++ static GLubyte *pixels              = 0;;
++ //last_screenshot_time.tv_sec       = 0;
++ //last_screenshot_time.tv_usec      = 0;
++ // 2020-10-18 for screenshots
++ 
+  auto OpenGL::output() -> void {
+    clear();
+  
+***************
+*** 170,175 ****
+--- 181,230 ----
+    glrParameters(sources[0].filter, sources[0].wrap);
+    render(sources[0].width, sources[0].height, outputX, outputY, outputWidth, outputHeight);
+  
++   // 2020-10-18 take screenshot
++   if ( ruby::get_make_screenshot_flag() ) {
++     timeval now;
++     //int     interval_usec = 1000000/5; // 1000000 usec = 1 sec
++     int     interval_usec = 1000000/1; // 1000000 usec = 1 sec
++ 
++     gettimeofday(&now, NULL);
++ 
++     if ((now.tv_sec*1000000 + now.tv_usec) >
++         (last_screenshot_time.tv_sec*1000000 + last_screenshot_time.tv_usec + interval_usec)) {
++ 
++          // christmas format is 0x80E1, which is GL_BGRA. /usr/include/SDL/SDL_opengl.h
++          // JetPilotRising has the same format but the color is blue-enhanced instead of brown, so try
++          // GL_RGBA
++          //GLenum FORMAT        = getFormat();
++          GLenum FORMAT        = GL_RGBA;       // for JetPilotRising. getFormat() reports wrong format
++          GLuint FORMAT_NBYTES = 4;  // blue, green, red, alpha
++          // christmas type is 0x8367, which is GL_UNSIGNED_INT_8_8_8_8_REV (same SDL_opengl.h)
++          // JetPilotRising is also type 0x8367
++          GLuint TYPE          = getType();
++ 
++          // screencapture followed by gimp shows that the area of the games is 585x448, 581x445, and 586x445,
++ 	 // the differences likely being due to variation in identification of the screen area of the game.
++ 	 // I cannot find the specification of the screen size in the source code; it may be set by the
++ 	 // window manager in which case we have to get it from there. Looks like the following works:
++          uint width   = OpenGL::outputWidth;
++          uint height  = OpenGL::outputHeight;
++ 
++          // allocate space just once
++          if (pixels == (GLubyte *)0) {
++              pixels = (GLubyte *)malloc(FORMAT_NBYTES * width * height);
++          }
++          glReadPixels(0, 0, width, height, FORMAT, TYPE, pixels);
++          create_ppm(snapshot_index, (unsigned int)width, (unsigned int)height, FORMAT_NBYTES, pixels);
++ //          printf("now: %d.%d, last %d.%d. w/h %d/%d. Format %X, Type %X\n", 
++ //               (int)now.tv_sec, (int)now.tv_usec, 
++ // 	       (int)last_screenshot_time.tv_sec, (int)last_screenshot_time.tv_usec, 
++ //               width, height, FORMAT, TYPE);
++          snapshot_index++;
++          last_screenshot_time = now;
++     }
++   }
++   // 2020-10-18 take screenshot
++ 
+    if(history.size() > 0) {
+      OpenGLTexture frame = history.takeRight();
+  
+***************
+*** 184,189 ****
+--- 239,263 ----
+    }
+  }
+  
++ auto OpenGL::create_ppm(int frame_id, unsigned int width, unsigned int height,
++         unsigned int pixel_nbytes, GLubyte *pixels) -> void {
++     size_t i, j, k, cur;
++     enum Constants { max_filename = 256 };
++     char filename[max_filename];
++     snprintf(filename, max_filename, "%s%d.ppm", "foo", frame_id);
++     FILE *f = fopen(filename, "w");
++     fprintf(f, "P3\n%d %d\n%d\n", width, height, 255);
++     for (i = 0; i < height; i++) {
++         for (j = 0; j < width; j++) {
++             cur = pixel_nbytes * ((height - i - 1) * width + j);
++             fprintf(f, "%3d %3d %3d ", pixels[cur], pixels[cur + 1], pixels[cur + 2]);
++         }
++         fprintf(f, "\n");
++     }
++     fclose(f);
++     printf("screenshot %d in file %s\n", frame_id, filename);
++ }
++ 
+  auto OpenGL::initialize(const string& shader) -> bool {
+    if(!OpenGLBind()) return false;
+  
+diff -rc higan-nightly/ruby/video/opengl/opengl.hpp higan-nightly.new/ruby/video/opengl/opengl.hpp
+*** higan-nightly/ruby/video/opengl/opengl.hpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/opengl/opengl.hpp	2020-10-18 16:52:17.022058579 -0500
+***************
+*** 73,78 ****
+--- 73,83 ----
+    auto initialize(const string& shader) -> bool;
+    auto terminate() -> void;
+  
++   // 2020-10-18 take snapshot
++   int snapshot_index = 0;
++   auto create_ppm(int, unsigned int, unsigned int, unsigned int, GLubyte*) -> void;
++   // 2020-10-18 take snapshot
++ 
+    vector<OpenGLProgram> programs;
+    vector<OpenGLTexture> history;
+    GLuint inputFormat = GL_RGBA8;
+diff -rc higan-nightly/ruby/video/wgl.cpp higan-nightly.new/ruby/video/wgl.cpp
+*** higan-nightly/ruby/video/wgl.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/wgl.cpp	2020-10-18 15:33:24.110721514 -0500
+***************
+*** 88,93 ****
+--- 88,95 ----
+      uint windowWidth, windowHeight;
+      size(windowWidth, windowHeight);
+  
++ printf("wgl.cpp: width/height '%d'/'%d'\n", (int)width, (int)height);
++ 
+      OpenGL::absoluteWidth = width;
+      OpenGL::absoluteHeight = height;
+      OpenGL::outputX = 0;
+diff -rc higan-nightly/ruby/video/xshm.cpp higan-nightly.new/ruby/video/xshm.cpp
+*** higan-nightly/ruby/video/xshm.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/xshm.cpp	2020-10-18 15:24:19.423868368 -0500
+***************
+*** 126,131 ****
+--- 126,133 ----
+      x += viewportX;
+      y += viewportY;
+  
++ printf("VideoXShm : VideoDriver :: output():  width/height '%d'/'%d'\n", (int)width, (int)height);
++ 
+      #pragma omp parallel for
+      for(uint y = 0; y < height; y++) {
+        float ystep = y * yratio;
+diff -rc higan-nightly/ruby/video/xvideo.cpp higan-nightly.new/ruby/video/xvideo.cpp
+*** higan-nightly/ruby/video/xvideo.cpp	2020-10-09 03:41:58.000000000 -0500
+--- higan-nightly.new/ruby/video/xvideo.cpp	2020-10-18 15:29:30.539581815 -0500
+***************
+*** 112,117 ****
+--- 112,119 ----
+        viewportHeight = _monitorHeight;
+      }
+  
++ printf("xvideo.cpp: width/height '%d'/'%d'\n", (int)_width, (int)_height);
++ 
+      auto& name = _formatName;
+      if(name == "RGB24" ) renderRGB24 (_width, _height);
+      if(name == "RGB24P") renderRGB24P(_width, _height);

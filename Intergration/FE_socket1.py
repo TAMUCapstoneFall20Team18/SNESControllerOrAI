@@ -447,7 +447,7 @@ def analyze_image(input_image_name_root, input_image_dir):
   if s_send == '': connect_to_downstream_socket()    # this daemon ought to exist by now
   data   = feature_name.encode('utf-8')
   s_send.sendall(data) #that file
-  print(f"{DAEMON_NAME} sent data {data.decode()} to CF_socket ")
+  print(f"{DAEMON_NAME}: {data.decode()}")
 ##  reply = s_send.recv(1024)
 ##  print(" .. {} got the following: {}".format(DAEMON_NAME, reply.decode()))
   

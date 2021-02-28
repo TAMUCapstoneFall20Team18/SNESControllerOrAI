@@ -16,9 +16,10 @@ import socket
 import random
 import re
 
-hostMACAddress = 'BC:14:EF:A3:39:3C'
-recieve_port = 5 ##bluetooth for RM socket ##This is becuase currently looking at one port
-backlog = 1
+#hostMACAddress = 'BC:14:EF:A3:39:3C'
+hostMACAddress = 'BC:14:EF:A3:BE:73'
+recieve_port = 8 ##bluetooth for RM socket ##This is becuase currently looking at one port
+backlog = 3
 size = 1024 ##size of the buffer
 
 def socket_setup(): ##Sets up the bluetooth socket
@@ -26,6 +27,7 @@ def socket_setup(): ##Sets up the bluetooth socket
     s_blue = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
     s_blue.bind((hostMACAddress, recieve_port))
     s_blue.listen(backlog)
+    print("Bluetooth from Emulator up")
 
 def close_socket(): ##final closing socket
     global s_blue, s_receive
@@ -45,10 +47,10 @@ def main():
     #global s_receive, s_send
     global s_blue, s_receive
     f = open("/home/widman/Documents/School20Fall/ECEN_403/retro_gym/higan-nightly/higan-nightly/myfifo","wb")
-    
+    count = 0
     while True:
 
-        p1 = re.compile("^\d{3}") #assuming that the 16 vector is longer than 3 digits
+        #p1 = re.compile("^\d{3}") #assuming that the 16 vector is longer than 3 digits
         p2 = re.compile("^[a]+|[tf]{1}")
         p3 = re.compile("^\d{1,2}")
         s_receive, address = s_blue.accept()
@@ -66,27 +68,29 @@ def main():
 ##                    f.write(b'a')
 ##                    f.flush()
                 #print(type(data_input))
-                m1 = p1.match(data_input)
+                #m1 = p1.match(data_input)
                 m2 = p2.match(data_input)
                 m3 = p3.match(data_input)
-                if m1: #this is if 16 bit vector
-                    keypress = 0
-                    print(f"16 vector")
-                    break
-                elif m2:
+##                if m1: #this is if 16 bit vector
+##                    keypress = 0
+##                    print(f"16 vector")
+##                    break
+                if m2:
                     print(f"From Pi {data_input}")
-                    if data_input == 't':
+                    if data_input == 't': ##AI is ON now
                         f.write(b'1')
                         f.flush()
-                    elif data_input == 'f':
+                    elif data_input == 'f': ## AI is OFF now
                         f.write(b'2')
                         f.flush()
                     else: ##FIX only one input per press, no holding possible per poll
                         keypress_input = re.findall('a', data_input)
-                        for i in range(1, keypress_input):
-                            print(f"This is press num {keypress_input})
+                        for i in range(0, len(keypress_input)):
+                            print(f"This is press num {i}")
                             f.write(b'a')
-                            f.flush()        ##Count A's and print as count                  
+                            f.flush()        ##Count A's and print as count
+                            #time.sleep(0.01)
+                            count += 1
 
                 elif m3:
                     keypress = int(data_input)
@@ -101,11 +105,13 @@ def main():
                         time.sleep(0.1)
                         keypress -= 1
 
-                    
+                else:
+                    break
                     
     
         except Exception as e:
             print(f"Error {e}")
+            print(f"The 'a' count is {count}")
             
         
     f.close()

@@ -18,15 +18,16 @@ import time
 This is the pi communication code: It is working with bluetooth only.
 """
 
-hostMACAddress = 'BC:14:EF:A3:39:3C'
-send_port = 5 ##bluetooth port computer comms to pi (CF data)
+#hostMACAddress = 'BC:14:EF:A3:39:3C'
+hostMACAddress = 'BC:14:EF:A3:BE:73'
+port = 7
 backlog = 1
 size = 1024 ##size of the buffer
 
 
 HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
 PORT_RECEIVE = 9082     # Port to listen on (non-privileged ports are > 1023)
-PORT_SEND    = 9083     # Port to listen on (non-privileged ports are > 1023)
+#PORT_SEND    = 9083     # Port to listen on (non-privileged ports are > 1023)
 DAEMON_NAME  = "CF_socket"
 
 def setup_sockets():
@@ -41,8 +42,10 @@ def setup_sockets():
 def setup_send_bluetooth():
    global s_blue
    s_blue = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-   s_blue.bind((hostMACAddress, send_port))
+   s_blue.bind((hostMACAddress, port))
    s_blue.listen(backlog)
+   #b_send, address = s_blue.accept()
+   print("Neural Bluetooth up")
 ##def setup_sendsocket():
 ##   global s_send
 ##   try:
@@ -56,21 +59,25 @@ def setup_send_bluetooth():
 ##       setup_sendsocket()
        
 
-def connect_to_downstream_socket():
-  global s_send
-
-  if s_send != '': return
-  try:
-     s_send    = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-     s_send.connect((HOST, PORT_SEND))
-  except:
-     print("Cannot connect to port {}. Quitting...".format(PORT_SEND))
+##def connect_to_downstream_socket():
+##  global s_send
+##
+##  if s_send != '': return
+##  try:
+##     s_send    = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+##     s_send.connect((HOST, PORT_SEND))
+##  except:
+##     print("Cannot connect to port {}. Quitting...".format(PORT_SEND))
 
 def closesocket():
-   global s_receive, s_send
+   global s_receive, b_send, s_blue
    if s_receive != '':
      s_receive.shutdown(socket.SHUT_RDWR)
      s_receive.close()
+   if s_blue != '':
+     s_blue.shutdown(socket.SHUT_RDWR)
+     s_blue.close()
+     
    print(f"Closed sockets {PORT_RECEIVE}")
 
 global_rocket_x = 0
@@ -497,7 +504,7 @@ def write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index):
     #       enemy_2_distance, enemy_2_height, enemy_3_distance, enemy_3_height,
     #       enemy_4_distance, enemy_4_height, barrier_top_distance, barrier_top_height,
     #       barrier_bottom_distance, barrier_bottom_height)
-    
+    #print("CF: Inside Function")
     i = 0
     enum_rocket_height            = i        ; i = i + 1
     enum_rocket_slope             = i        ; i = i + 1
@@ -517,7 +524,7 @@ def write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index):
     enum_barrier_bottom_height    = i        ; i = i + 1
     # set the distance to all threats to maximum distance (1000 px)
     feature_vector = [0, 0, 1500, 0, 1000, 0, 1000, 0, 1000, 0, 1000, 0, 1000, 0, 1000, 0 ] # 16 elements
-
+    #print("CF: Reached inizialization of list")
     x_positives = [0,0,0,0,0,0]
     x_old       = [0,0,0,0,0,0]
     y_old       = 0
@@ -619,6 +626,7 @@ def write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index):
     # the run identifier and exclude both of them when reading into jlw_gym.
     
     # fp_nn.write("{}  {}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}: {}\n".\
+    #print("CF: Finished For Loop")
     fp_nn.write("{} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}\n".\
           format(feature_vector[enum_rocket_height],           feature_vector[enum_rocket_slope], 
                  feature_vector[enum_rocket_velocity_x],       feature_vector[enum_rocket_velocity_y],
@@ -630,7 +638,9 @@ def write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index):
                  feature_vector[enum_barrier_bottom_distance], feature_vector[enum_barrier_bottom_height]
                  # , index
                  ))
-    global s_blue
+    #print("CF: Wrote to file")
+    global s_blue, b_send
+    print("CF: Bluetooth Setup")
 
 ##    if s_send == '': connect_to_downstream_socket()    # this daemon ought to exist by now
 ##    binary_vector = str(feature_vector)
@@ -638,19 +648,23 @@ def write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index):
 ##    data = binary_vector.encode('utf-8')
 ##    s_send.sendall(data)
     try:
-       b_send, address = s_blue.accept()
+       print("CF: Inside Try-block")
+       #b_send, address = s_blue.accept()
+       #print("CF: After Accepting")       
        # This can be any data:
-       binary_vector = str(feature_vector) ##FEATURE VECTOR FROM CF
+       binary_vector = ' '.join(map(str, feature_vector)) ##FEATURE VECTOR FROM CF
+       print("CF: After making list")
        ## making the list into a string, encoding it and sending it to RM_socket
        data = binary_vector.encode('utf-8')
        b_send.sendall(data)
-
+       print(f"{DAEMON_NAME}: {data.decode()} ")
+       
     except:
        print("Closing Pi socket")
        s_send.close()
        s_blue.close()
-    print(f"{DAEMON_NAME} sent data {data.decode()} to RM_socket ")
 
+    print("CF: If you reached here not problem")
 
 ############################################
 #
@@ -659,21 +673,29 @@ def write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index):
 ############################################
 
 def main():
-  global s_receive, s_send
+  global s_receive, b_send
   ##This is where the receive socket is to give the feature extraction input filenam
   feature_files = {}
+  ##Becuase the regex allows for longer data strings than the file, if the data has been
+  ## sent while this is cooking, it allows for combination of strints that reults in an error
+  ## Breaking the file.
+
+  ##Simple lazy fix is to take more time to load FE and screenshot while bluetooth is loading
+  ## TODO make this never happen again.
   while True:
       s_receive.listen()
       conn, addr = s_receive.accept()
       print('Connected by CF ', addr)
+      b_send, address = s_blue.accept()
+      print("CF: Accepted Blue")
       while True:
           data = conn.recv(1024)
           if not data:
               break
           data = data.decode()
-          print(f'Data {data} received from {PORT_RECEIVE} at {DAEMON_NAME}')
+          print(f'{DAEMON_NAME}: Data {data} received from {PORT_RECEIVE}')
           feature_filename = data
-
+          print("CF: Data is utilized")
             
 
   # uncomment this to write the jlw_observations.new.txt file.
@@ -691,12 +713,14 @@ def main():
            feature_files[index] = (date, time, epoch, name)
            boxes = {}
            date, time, epoch, feature_filename = feature_files[index]
+           #print("CF: Data Reached here seach")
            these_feature_data = process_feature_file(feature_filename)
+           print("CF: Data Reached here process")
          # uncomment this to see the images with the annotations. These are also written to file
            #write_feature_data_to_an_image(these_feature_data, image_name)
          # uncomment this to write the jlw_instruction.new.txt file and the fp_nn open and .close() statements
            write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index)
-
+           print("CF: Data Reached here write")
           else:
            print("no match")
          # uncomment this to write the jlw_instruction.new.txt file

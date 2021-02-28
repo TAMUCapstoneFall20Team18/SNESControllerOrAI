@@ -3,27 +3,31 @@ import random as rand
 
 import socket
 
-hostMACAddress = 'BC:14:EF:A3:39:3C'
-msg = "5"
-port = 5
+#hostMACAddress = 'BC:14:EF:A3:39:3C'
+hostMACAddress = 'BC:14:EF:A3:BE:73'
+port = 7
+msg = [10,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600]
 backlog = 1
 size = 1024
 s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 s.bind((hostMACAddress, port))
 s.listen(backlog)
 try:
-	client, address = s.accept()
-	client.send(bytes(msg, 'UTF-8'))
-	while 1:
-		data = client.recv(size)
-		if data:
-			print(data)
+        client, address = s.accept()
+        listToStr = ' '.join(map(str, msg))
+        print(listToStr)
+        client.send(bytes(listToStr, 'UTF-8'))
+        while 1:
+                data = client.recv(size)
+                if data:
+                        print(data)
 			# This can be any data:
-			client.send(bytes(msg, 'UTF-8'))
-except:
-	print("Closing socket")
-	client.close()
-	s.close()
+                        # client.send(bytes(msg, 'UTF-8'))
+except Exception as e:
+        print("Closing socket")
+        print(f"Error Exception {e}")
+        client.close()
+        s.close()
 
 
 

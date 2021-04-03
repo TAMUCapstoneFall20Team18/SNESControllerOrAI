@@ -44,6 +44,10 @@ def main():
 	dev.set_configuration(1)
 	eaddr=ep.bEndpointAddress
 	
+	while True:
+		if dev.read(eaddr,8,1000)[5] == 79:
+			break
+	
 	s_emulator = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 	##s_blue.bind((hostMACAddress, send_port))
 	##s_blue.listen(backlog)

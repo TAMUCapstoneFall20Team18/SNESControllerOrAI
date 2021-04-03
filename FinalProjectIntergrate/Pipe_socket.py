@@ -36,12 +36,12 @@ def close_socket(): ##final closing socket
     s_blue.close()
     print(f"Closed sockets pipe_socket")
 
-##def generate_rand_pulse():
-##    rand_selector = random.randint(0, 1000)
-##    #print(rand_selector)
-##    if rand_selector >=600:
-##        return True
-##    return False
+def generate_rand_pulse():
+    rand_selector = random.randint(0, 1000)
+    #print(rand_selector)
+    if rand_selector >=600:
+        return True
+    return False
 
 def main():
     #global s_receive, s_send
@@ -93,9 +93,9 @@ def main():
                             count += 1
                 elif m3:
                     keypress = int(data_input)
-##                    add_pulse = generate_rand_pulse()
-##                    if add_pulse == True:
-##                        keypress += 1
+                    add_pulse = generate_rand_pulse()
+                    if add_pulse == True:
+                        keypress += 1
 #                    print(f"Input to pipe is {keypress} presses")
                     
                     while keypress > 0: ##This needs the delay pulse

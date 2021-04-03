@@ -8,20 +8,19 @@ DATA OUT: PI TO LAPTOP
 ## which will release the pipe to just pipe and edit keypresses
 """
 
-print("1")
+import usb.core
 import jlw_main as jlw
 import re
 from tensorflow.keras.models import load_model
 import socket
 from gpiozero import Button
 from time import sleep
-print("2")
 
 def main():
 
-	AISwitch = Button(13)
-	buttonA = Button(19)
-	buttonStart = Button(5)
+	##AISwitch = Button(13)
+	##buttonA = Button(19)
+	##buttonStart = Button(5)
 	isAIOn = False
 	indexSent = True
 
@@ -34,7 +33,17 @@ def main():
 	backlog = 3
 	size = 1024 ##size of the buffer
 	
-	print("Initialized")
+	dev=usb.core.find(idVendor=0x0079,idProduct=0x0006)
+	ep=dev[0].interfaces()[0].endpoints()[0]
+	i=dev[0].interfaces()[0].bInterfaceNumber
+	dev.reset()
+
+	if dev.is_kernel_driver_active(i):
+		dev.detach_kernel_driver(i)
+	
+	dev.set_configuration(1)
+	eaddr=ep.bEndpointAddress
+	
 	s_emulator = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 	##s_blue.bind((hostMACAddress, send_port))
 	##s_blue.listen(backlog)
@@ -44,24 +53,22 @@ def main():
 	s_neural.connect((hostMACAddress,neural_access_port))
 	s_neural.setblocking(0)
 	##s_send, address = s_blue.accept()
-	print("Connected")
 
 	model = load_model('jlw_model_saved')
-	print("Model Loaded")
 
 	while True:
-		if buttonStart.is_pressed:
+		buttonArray=dev.read(eaddr,8,1000)
+		buttonData = buttonArray[5]
+		if buttonData == 79:
 			break
 			
 		## Check for AI button press to switch modes
-		if AISwitch.is_pressed:
+		if buttonData == 47 or buttonData == 63:
 			isAIOn = ~isAIOn
-			print("Mode switched")
 			if isAIOn:
 				AImsg = "t"
 			else:
 				AImsg = "f"
-			print(AImsg)
 			s_emulator.sendall(bytes(AImsg, 'UTF-8'))
 			sleep(1)
 		
@@ -69,18 +76,12 @@ def main():
 		while True:
 			try:
 				data = s_neural.recv(size)
-				print("Data Received")
 			except:
 				break
-			print(f"Type: {type(data)}")
 			data = data.decode()
-			print(f"Type: {type(data)}")
 			data = list(data.split(" "))
 			for item in range(len(data)):
 				data[item] = float(data[item])
-			print(f"RM_Socket Data {data}")
-			print(f"Type: {type(data)}")
-			print(f"Type: {type(data[1])}")
 			prediction       = model.predict([data]) 
 			prediction_index = jlw.find_index_of_max_element(prediction[0])
 			indexSent = False
@@ -89,10 +90,9 @@ def main():
 		if isAIOn:
 			if not indexSent:
 				s_emulator.sendall(bytes(str(prediction_index), 'UTF-8'))
-				print(str(prediction_index))
 				indexSent = True
 		else:
-			if buttonA.is_pressed:
+			if buttonData == 31:
 				text = "a"
 			else:
 				text = ""
@@ -102,7 +102,6 @@ def main():
 				print(f"Error: {e}")
 			sleep(0.02)
 
-	print("Closing sockets")
 	s_emulator.close()
 	s_neural.close()
 

@@ -36,12 +36,12 @@ def close_socket(): ##final closing socket
     s_blue.close()
     print(f"Closed sockets pipe_socket")
 
-def generate_rand_pulse():
-    rand_selector = random.randint(0, 1000)
-    #print(rand_selector)
-    if rand_selector >=600:
-        return True
-    return False
+##def generate_rand_pulse():
+##    rand_selector = random.randint(0, 1000)
+##    #print(rand_selector)
+##    if rand_selector >=600:
+##        return True
+##    return False
 
 def main():
     #global s_receive, s_send
@@ -63,7 +63,7 @@ def main():
                     break
                 keypress = 0
                 data_input = data.decode()
-                print(f"This is the data receieved {data_input}")
+#                print(f"This is the data receieved {data_input}")
 ##                if data_input:
 ##                    f.write(b'a')
 ##                    f.flush()
@@ -76,7 +76,7 @@ def main():
 ##                    print(f"16 vector")
 ##                    break
                 if m2:
-                    print(f"From Pi {data_input}")
+#                    print(f"From Pi {data_input}")
                     if data_input == 't': ##AI is ON now
                         f.write(b'1')
                         f.flush()
@@ -86,18 +86,17 @@ def main():
                     else: ##FIX only one input per press, no holding possible per poll
                         keypress_input = re.findall('a', data_input)
                         for i in range(0, len(keypress_input)):
-                            print(f"This is press num {i}")
+#                            print(f"This is press num {i}")
                             f.write(b'a')
                             f.flush()        ##Count A's and print as count
                             #time.sleep(0.01)
                             count += 1
-
                 elif m3:
                     keypress = int(data_input)
-                    add_pulse = generate_rand_pulse()
-                    if add_pulse == True:
-                        keypress += 1
-                    print(f"Input to pipe is {keypress} presses")
+##                    add_pulse = generate_rand_pulse()
+##                    if add_pulse == True:
+##                        keypress += 1
+#                    print(f"Input to pipe is {keypress} presses")
                     
                     while keypress > 0: ##This needs the delay pulse
                         f.write(b'a')
@@ -111,7 +110,7 @@ def main():
     
         except Exception as e:
             print(f"Error {e}")
-            print(f"The 'a' count is {count}")
+#            print(f"The 'a' count is {count}")
             
         
     f.close()

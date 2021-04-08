@@ -8,6 +8,7 @@ DATA OUT: PI TO LAPTOP
 ## which will release the pipe to just pipe and edit keypresses
 """
 
+import usb.core
 import jlw_main as jlw
 import re
 from tensorflow.keras.models import load_model
@@ -16,99 +17,97 @@ from gpiozero import Button
 from time import sleep
 
 def main():
-# Put receiving here
-##    global s_receive, s_send
-##
-##    while True:
-##        s_receive.listen()
-##        conn, addr = s_receive.accept()
-##        print('Connected by RM', addr)
-##        model = load_model('jlw_model_saved') ## loads pretrained model this semester
-##        while True:
-##            data = conn.recv(1024)
-##            if not data:
-##                break
-##            data = data.decode()
-##            data = eval(data)
-##            print(f"RM_Socket Data {data}")
-##        
-##            if data:
-##                x_input = [int(i) for i in data]
-####                print(x_input)
 
-	AISwitch = Button(13)
-	buttonA = Button(19)
+	##AISwitch = Button(13)
+	##buttonA = Button(19)
+	##buttonStart = Button(5)
 	isAIOn = False
+	indexSent = True
 
 ##Data is from CF received by PI may need sockets for the transfer by socket again
-	hostMACAddress = 'BC:14:EF:A3:39:3C'
-	send_port = 5 ##bluetooth port pi to computer
-	backlog = 1
+	##hostMACAddress = '54:13:79:6D:CE:B6'
+	hostMACAddress = 'BC:14:EF:A3:BE:73'
+	emulator_port = 8 ##bluetooth port pi to computer
+	neural_access_port = 7
+	
+	backlog = 3
 	size = 1024 ##size of the buffer
 	
-	try:
-		print("Initialized")
-		s_blue = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-		s_blue.bind((hostMACAddress, send_port))
-		s_blue.listen(backlog)
-		s_send, address = s_blue.accept()
+	dev=usb.core.find(idVendor=0x0079,idProduct=0x0006)
+	ep=dev[0].interfaces()[0].endpoints()[0]
+	i=dev[0].interfaces()[0].bInterfaceNumber
+	dev.reset()
 
-		model = load_model('jlw_model_saved')
+	if dev.is_kernel_driver_active(i):
+		dev.detach_kernel_driver(i)
+	
+	dev.set_configuration(1)
+	eaddr=ep.bEndpointAddress
+	
+	while True:
+		if dev.read(eaddr,8,1000)[5] == 79:
+			break
+	
+	s_emulator = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+	##s_blue.bind((hostMACAddress, send_port))
+	##s_blue.listen(backlog)
+	s_emulator.connect((hostMACAddress,emulator_port))
+	
+	s_neural = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+	s_neural.connect((hostMACAddress,neural_access_port))
+	s_neural.setblocking(0)
+	##s_send, address = s_blue.accept()
 
-		while True:
-		
-			## Check for AI button press to switch modes
-			if AISwitch.is_pressed:
-				isAIOn = ~isAIOn
-				print("Mode switched")
-				if isAION:
-					AImsg = "On"
-				else:
-					AImsg = "Off"
-				print(AImsg)
-				s_send.sendall(bytes(msg, 'UTF-8'))
-				sleep(1)
-		
-			##Receive data from emulator, if any is present	
-			while True:
-				data = s_send.recv(size)
-				if not data:
-					break
-				data = data.decode()
-				data = eval(data)
-				print(f"RM_Socket Data {data}")
-				## prediction       = model.predict([data]) 
-				## prediction_index = jlw.find_index_of_max_element(prediction[0])
-				prediction_index = 4
+	model = load_model('jlw_model_saved')
 
-			##When AI mode is active send prediction index
-			if isAION:
-				s_send.sendall(bytes(prediction_index, 'UTF-8'))
-				sleep(1)
+	while True:
+		buttonArray=dev.read(eaddr,8,1000)
+		buttonData = buttonArray[5]
+		if buttonData == 79:
+			break
+			
+		## Check for AI button press to switch modes
+		if buttonData == 47 or buttonData == 63:
+			isAIOn = ~isAIOn
+			if isAIOn:
+				AImsg = "t"
 			else:
-				if buttonA.is_pressed:
-					text = "a"
-				else:
-					text = ""
-				s_send.sendall(bytes(text, 'UTF-8'))
-				sleep(1)
+				AImsg = "f"
+			s_emulator.sendall(bytes(AImsg, 'UTF-8'))
+			sleep(1)
+		
+		##Receive data from emulator, if any is present	
+		while True:
+			try:
+				data = s_neural.recv(size)
+			except:
+				break
+			data = data.decode()
+			data = list(data.split(" "))
+			for item in range(len(data)):
+				data[item] = float(data[item])
+			prediction       = model.predict([data]) 
+			prediction_index = jlw.find_index_of_max_element(prediction[0])
+			indexSent = False
 
-	except:
-		print("Closing socket")
-		s_send.close()
-		s_blue.close()
-#PUTS PREDITION NUMBER INTO THE PI AND SENT TO THE PIPE
+		##When AI mode is active send prediction index
+		if isAIOn:
+			if not indexSent:
+				s_emulator.sendall(bytes(str(prediction_index), 'UTF-8'))
+				indexSent = True
+		else:
+			if buttonData == 31:
+				text = "a"
+			else:
+				text = ""
+			try:
+				s_emulator.sendall(bytes(text, 'UTF-8'))
+			except Exception as e:
+				print(f"Error: {e}")
+			sleep(0.02)
 
-
-##NN transmists houw many times pressed
-##            if s_send == '': connect_to_downstream_socket()    # this daemon ought to exist by now
-##            data = str(prediction_index)
-##            data = data.encode()
-##            s_send.sendall(data)
-##            print(f"RM_socket sending data {data.decode()} to Pipe_socket ")
-##            time.sleep(0.1)
-
-
+	s_emulator.close()
+	s_neural.close()
 
 #try:
 #    setup_sockets()

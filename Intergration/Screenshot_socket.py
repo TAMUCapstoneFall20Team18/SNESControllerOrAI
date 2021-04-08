@@ -87,7 +87,8 @@ def screenshot_function(left, top, width, height):
    global s_send
 
    if s_send == '': connect_to_downstream_socket()# this daemon ought to exist by now
-   print(f'{DAEMON_NAME} sending {data} to FE_Socket')
+   #print(f'{DAEMON_NAME} sending {data} to FE_Socket')
+   print(f'{DAEMON_NAME}: sent image')
    data   = data.encode('utf-8')
    s_send.sendall(data)
 ##   time.sleep(2)

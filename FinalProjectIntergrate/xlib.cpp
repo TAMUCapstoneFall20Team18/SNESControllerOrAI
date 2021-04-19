@@ -76,7 +76,7 @@ struct InputKeyboardXlib {
     count = 0;
     //Possible Buffer overflow or write here
     while ((*cp != 0) && (cp < buffer + MAX_BUFFER_SIZE)){
-      printf("This is what is in the buffer %c \n", *cp);
+      //printf("This is what is in the buffer %c \n", *cp);
 
       if(*cp == 'a'){
 	simulate_keypress_flag += 1;

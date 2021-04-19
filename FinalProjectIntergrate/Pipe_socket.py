@@ -10,6 +10,8 @@
 ##CHANGES Changed to allow for a random amout of change to the keypress
 #2021-02-06
 #CHANGES: Socket manipulation and begining of implimentation of regex filtering
+#2021-04-06
+#CHANGES Allow for directional gameplay on other game ChristmasCraze and Donkey Kong
 
 import time
 import socket
@@ -51,8 +53,9 @@ def main():
     while True:
 
         #p1 = re.compile("^\d{3}") #assuming that the 16 vector is longer than 3 digits
-        p2 = re.compile("^[a]+|[tf]{1}")
+        p2 = re.compile("[audlr]+|[tf]{1}")
         p3 = re.compile("^\d{1,2}")
+
         s_receive, address = s_blue.accept()
         try:
             
@@ -83,14 +86,37 @@ def main():
                     elif data_input == 'f': ## AI is OFF now
                         f.write(b'2')
                         f.flush()
+                    
                     else: ##FIX only one input per press, no holding possible per poll
-                        keypress_input = re.findall('a', data_input)
-                        for i in range(0, len(keypress_input)):
-#                            print(f"This is press num {i}")
-                            f.write(b'a')
-                            f.flush()        ##Count A's and print as count
+                        #keypress_input = re.findall('a', data_input)
+                        #This is not optimized for branchless programming, but it will
+                        # do for now
+                        for i in range(0, len(data_input)):
+#                           print(f"This is press num {i}")
+                            if(data_input[i] == 'u'):
+                                #print(f'u {data_input[i]}')
+                                f.write(b'u')
+                                f.flush()        
+                            elif(data_input[i] == 'd'):
+                                #print(f'd {data_input[i]}')
+                                f.write(b'd')
+                                f.flush()        
+                            elif(data_input[i] == 'l'):
+                                #print(f'l {data_input[i]}')
+                                f.write(b'l')
+                                f.flush()        
+                            elif(data_input[i] == 'r'):
+                                #print(f'r {data_input[i]}')
+                                f.write(b'r')
+                                f.flush()        
+                            elif(data_input[i] == 'a'):
+                                #print(f'a {data_input[i]}')
+                                f.write(b'a')
+                                f.flush()        
+                            else: continue
+
                             #time.sleep(0.01)
-                            count += 1
+                            #count += 1
                 elif m3:
                     keypress = int(data_input)
                     add_pulse = generate_rand_pulse()
@@ -106,7 +132,6 @@ def main():
 
                 else:
                     break
-                    
     
         except Exception as e:
             print(f"Error {e}")

@@ -14,3 +14,4 @@ echo "Lock three"
 python3 FE_socket1.py &
 sleep 3s
 python3 Screenshot_socket.py &
+##Watchdog for 15 min gameplay?

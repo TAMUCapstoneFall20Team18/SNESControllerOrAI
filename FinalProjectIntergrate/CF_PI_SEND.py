@@ -74,9 +74,9 @@ def closesocket():
    if s_receive != '':
      s_receive.shutdown(socket.SHUT_RDWR)
      s_receive.close()
-   if s_blue != '':
-     s_blue.shutdown(socket.SHUT_RDWR)
-     s_blue.close()
+   if b_send != '':
+     b_send.shutdown(socket.SHUT_RDWR)
+     b_send.close()
      
    print(f"Closed sockets {PORT_RECEIVE}")
 
@@ -661,8 +661,9 @@ def write_feature_data_to_NN_file(these_feature_data, epoch, fp_nn, index):
 #       print(f"CE: Data Received")       
     except:
        print("Closing Pi socket")
-       s_send.close()
+       b_send.close()
        s_blue.close()
+       closesocket()
 
 #    print("CF: If you reached here not problem")
 
